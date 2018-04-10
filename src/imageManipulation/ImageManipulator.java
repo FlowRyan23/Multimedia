@@ -1,5 +1,6 @@
 package imageManipulation;
 
+import basic.Point;
 import javafx.scene.image.Image;
 import javafx.scene.image.PixelReader;
 import javafx.scene.image.PixelWriter;
@@ -61,4 +62,76 @@ public class ImageManipulator {
 		
 		return res;
 	}
+	
+	public Image scale(Image img, double factor, ScalingType scalingType) {
+		int width = (int) (img.getWidth()*factor);
+		int height = (int) (img.getHeight()*factor);
+		
+		System.out.println("scaling image by factor " + factor);
+		System.out.println("old: " + img.getWidth() + ", " + img.getHeight());
+		System.out.println("new: " + width + ", " + height);
+		
+		WritableImage res = new WritableImage(width, height);
+		PixelWriter writer = res.getPixelWriter();
+		PixelReader reader = img.getPixelReader();
+		
+		for (int x=0; x<width; x++)
+			for (int y=0; y<height; y++) {
+				Color color;
+				switch (scalingType) {
+				case NEAREST_NEIGHBOR:
+					color = reader.getColor((int) (x*img.getWidth()/width), (int) (y*img.getHeight()/height));
+					break;
+				case BILINEAR:
+					Point np = new Point(x*(img.getWidth()/width), y*(img.getHeight()/height));
+					Point p1 = new Point(Math.floor(np.x), Math.floor(np.y));
+					Point p2 = new Point(Math.min(img.getWidth()-1, p1.x+1), Math.min(img.getHeight()-1, p1.y+1));
+					
+//					System.out.println(np);
+//					System.out.println(p1);
+//					System.out.println(p2);
+					
+					//for detail see wikipedia/Bilinear Interpolation
+					double a = 1/((p2.x-p1.x)*(p2.y-p1.y));
+					double a11 = (p2.x-np.x)*(p2.y-np.y);
+					double a12 = (p2.x-np.x)*(np.y-p1.y);
+					double a21 = (np.x-p1.x)*(p2.y-np.y);
+					double a22 = (np.x-p1.x)*(np.y-p1.y);
+					
+//					System.out.println(a + ", " + a11 + ", " + a12 + ", " + a21 + ", " + a22);
+					
+					double red = a*(a11*reader.getColor((int) p1.x, (int) p1.y).getRed() +
+							a12*reader.getColor((int) p1.x, (int) p2.y).getRed() +
+							a21*reader.getColor((int) p2.x, (int) p1.y).getRed() +
+							a22*reader.getColor((int) p2.x, (int) p2.y).getRed());
+					double green = a*(a11*reader.getColor((int) p1.x, (int) p1.y).getGreen() +
+							a12*reader.getColor((int) p1.x, (int) p2.y).getGreen() +
+							a21*reader.getColor((int) p2.x, (int) p1.y).getGreen() +
+							a22*reader.getColor((int) p2.x, (int) p2.y).getGreen());
+					double blue = a*(a11*reader.getColor((int) p1.x, (int) p1.y).getBlue() +
+							a12*reader.getColor((int) p1.x, (int) p2.y).getBlue() +
+							a21*reader.getColor((int) p2.x, (int) p1.y).getBlue() +
+							a22*reader.getColor((int) p2.x, (int) p2.y).getBlue());
+					double aplha = a*(a11*reader.getColor((int) p1.x, (int) p1.y).getOpacity() +
+							a12*reader.getColor((int) p1.x, (int) p2.y).getOpacity() +
+							a21*reader.getColor((int) p2.x, (int) p1.y).getOpacity() +
+							a22*reader.getColor((int) p2.x, (int) p2.y).getOpacity());
+					
+//					System.out.println(red + ", " + green + ", " + blue + ", " + aplha);
+					
+					color = Color.rgb((int)(red*255), (int)(green*255), (int)(blue*255), aplha);					
+					break;
+				default:
+					color = Color.BLACK;
+					break;
+				}
+				writer.setColor(x, y, color);
+			}
+				
+		return res;
+	}
+}
+
+enum ScalingType {
+		NEAREST_NEIGHBOR, BILINEAR;
 }
