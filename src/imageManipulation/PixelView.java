@@ -2,39 +2,49 @@ package imageManipulation;
 
 import basic.Point;
 import javafx.beans.property.SimpleObjectProperty;
-import javafx.scene.control.Label;
+import javafx.geometry.Insets;
+import javafx.scene.image.Image;
+import javafx.scene.image.PixelReader;
+import javafx.scene.layout.GridPane;
 import javafx.scene.layout.HBox;
-import javafx.scene.layout.VBox;
 import javafx.scene.paint.Color;
 import javafx.scene.shape.Rectangle;
 
 public class PixelView extends HBox {
 
-	private SimpleObjectProperty<PixelInfo> pixelProperty;
+	private SimpleObjectProperty<PixelInfo> pixelProperty = new SimpleObjectProperty<>();
 	
-	public PixelView(PixelInfo pixelInfo) {
+	public PixelView(PixelInfo pixelInfo, int size) {
 		pixelProperty.set(pixelInfo);
 		
-		Rectangle bigPixel = new Rectangle(16, 16, pixelInfo.color);
+		Rectangle bigPixel = new Rectangle(size, size, pixelInfo.color);
+
+		Rectangle redAmount = new Rectangle(4, size*pixelInfo.color.getRed(), Color.RED);
+		Rectangle greenAmount = new Rectangle(4, size*pixelInfo.color.getGreen(), Color.GREEN);
+		Rectangle blueAmount = new Rectangle(4, size*pixelInfo.color.getBlue(), Color.BLUE);
 		
-		HBox redBox = new HBox();
-		Rectangle redAmount = new Rectangle(4, 8*pixelInfo.color.getRed(), Color.RED);
-		redBox.getChildren().add(redAmount);
-		redBox.getChildren().add(new Label("Red"));
+		this.setSpacing(1);
+		this.getChildren().addAll(bigPixel, redAmount, greenAmount, blueAmount);
+	}
+	
+}
+
+class PixelGridView extends GridPane {
+	
+	public PixelGridView(Image img, int size) {
+		System.out.println("w " + img.getWidth() + ", h " + img.getHeight());
 		
-		HBox greenBox = new HBox();
-		Rectangle greenAmount = new Rectangle(4, 8*pixelInfo.color.getGreen(), Color.GREEN);
-		greenBox.getChildren().add(greenAmount);
-		greenBox.getChildren().add(new Label("Green"));
+		PixelReader reader = img.getPixelReader();
 		
-		HBox blueBox = new HBox();
-		Rectangle blueAmount = new Rectangle(4, 8*pixelInfo.color.getBlue());
-		blueBox.getChildren().add(blueAmount);
-		blueBox.getChildren().add(new Label("Blue"));
-		
-		VBox infoBox = new VBox(redBox, greenBox, blueBox);
-		
-		this.getChildren().addAll(bigPixel, infoBox);
+		for(int x=0; x<img.getWidth(); x++) {
+			PixelView[] column = new PixelView[(int) img.getHeight()];
+			for(int y=0; y<img.getHeight(); y++) {
+				column[y] = new PixelView(new PixelInfo(reader.getColor(x, y), new Point(x, y)), size);
+				column[y].setPadding(new Insets(1));
+			}
+			this.addColumn(x, column);
+		}
+				
 	}
 	
 }
