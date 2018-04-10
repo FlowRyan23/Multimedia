@@ -6,7 +6,7 @@ import javafx.scene.image.PixelWriter;
 import javafx.scene.image.WritableImage;
 import javafx.scene.paint.Color;
 
-public class Manipulator {
+public class ImageManipulator {
 	
 	public Image applyFilter(Image img, Filter filter) {
 		int width = (int) img.getWidth();
