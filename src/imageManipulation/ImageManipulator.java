@@ -87,6 +87,10 @@ public class ImageManipulator {
 					Point p1 = new Point(Math.floor(np.x), Math.floor(np.y));
 					Point p2 = new Point(Math.min(img.getWidth()-1, p1.x+1), Math.min(img.getHeight()-1, p1.y+1));
 					
+					if(p1.x==p2.x || p1.y==p2.y) {
+						color = reader.getColor((int) p1.x, (int) p2.y);
+						continue;
+					}
 //					System.out.println(np);
 //					System.out.println(p1);
 //					System.out.println(p2);
@@ -119,7 +123,16 @@ public class ImageManipulator {
 					
 //					System.out.println(red + ", " + green + ", " + blue + ", " + aplha);
 					
-					color = Color.rgb((int)(red*255), (int)(green*255), (int)(blue*255), aplha);					
+					if(p1.x==p2.x || p1.y==p2.y) {
+						System.out.println("x: " + x + ", y: " + y);
+						System.out.println(np);
+						System.out.println(p1);
+						System.out.println(p2);
+						System.out.println(a + ", " + a11 + ", " + a12 + ", " + a21 + ", " + a22);
+						System.out.println(red + ", " + green + ", " + blue + ", " + aplha);
+					}
+					
+					color = Color.rgb((int)(red*255), (int)(green*255), (int)(blue*255), Math.min(1, Math.max(0, aplha)));					
 					break;
 				default:
 					color = Color.BLACK;
