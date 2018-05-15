@@ -13,14 +13,27 @@ public class Filter {
 	public static Filter scharrH = new Filter("scharrH", new double[][] {{3, 0, -3}, {10, 0, -10}, {3, 0, -3}});
 	public static Filter laplaceA = new Filter("laplaceA", new double[][] {{-1, -1, -1}, {-1, 8, -1}, {-1, -1, -1}}, 1.0/9.0);
 	
+	public static final int red=0, green=1, blue=2;
+	
 	public String name;
-	public double[][] kernel;
+	public double[][][] kernel;
 	public double correction;
 	public boolean color;
 	
-	public Filter(String name, double[][] kernel, double correction, boolean color) {
+	public Filter(String name, double[][][] kernel, double correction) {
 		this.name = name;
 		this.kernel = kernel;
+		this.correction = correction;
+		color = true;
+	}
+	
+	public Filter(String name, double[][] redKernel, double[][] greenKernel, double[][] blueKernel, double correction) {
+		this(name, new double[][][] {redKernel, greenKernel, blueKernel}, correction);
+	}
+	
+	public Filter(String name, double[][] kernel, double correction, boolean color) {
+		this.name = name;
+		this.kernel = new double[][][] {kernel, kernel, kernel};
 		this.correction = correction;
 		this.color = color;
 	}

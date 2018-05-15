@@ -1,5 +1,9 @@
 package imageManipulation;
 
+import java.util.Stack;
+
+import basic.BaseKit;
+import basic.IntPoint;
 import basic.Point;
 import javafx.scene.image.Image;
 import javafx.scene.image.PixelReader;
@@ -12,7 +16,7 @@ public class ImageManipulator {
 	public Image applyFilter(Image img, Filter filter) {
 		int width = (int) img.getWidth();
 		int height = (int) img.getHeight();
-		double[][] kernel = filter.kernel;
+		double[][][] kernel = filter.kernel;
 		double correction = filter.correction;
 		WritableImage res = new WritableImage(width, height);
 		
@@ -32,11 +36,11 @@ public class ImageManipulator {
 							continue;
 						
 						int argb = pixelReader.getArgb(posX, posY);
-						red += kernel[w][h] * ((0xff<<16 & argb)>>>16);
-						green += kernel[w][h] * ((0xff<<8 & argb)>>>8);
-						blue += kernel[w][h] * (0xff & argb);
+						red += kernel[Filter.red][w][h] * ((0xff<<16 & argb)>>>16);
+						green += kernel[Filter.green][w][h] * ((0xff<<8 & argb)>>>8);
+						blue += kernel[Filter.blue][w][h] * (0xff & argb);
 						
-						gray += kernel[w][h] * pixelReader.getColor(posX, posY).grayscale().getBrightness() * 255;					
+						gray += kernel[0][w][h] * pixelReader.getColor(posX, posY).grayscale().getBrightness() * 255;					
 					}
 				
 				if(filter.color) {
@@ -50,15 +54,58 @@ public class ImageManipulator {
 		return res;
 	}
 	
-	public Image greyScale(Image img) {
+	public Image pixelwiseOp(Image img, PixelOp op) {
 		int width = (int) img.getWidth();
 		int height = (int) img.getHeight();
 		WritableImage res = new WritableImage(width, height);
+		PixelReader reader = img.getPixelReader();
 		PixelWriter writer = res.getPixelWriter();
 		
 		for (int x=0; x<width; x++)
 			for (int y=0; y<height; y++)
-				writer.setColor(x, y, img.getPixelReader().getColor(x, y).grayscale());
+				switch (op) {
+				case GREY_SCALE:
+					writer.setColor(x, y, reader.getColor(x, y).grayscale());
+					break;
+				case INVERT:
+					writer.setColor(x, y, reader.getColor(x, y).invert());
+					break;				
+				default:
+					break;
+				}
+		
+		return res;
+	}
+	
+	public Image colorNormalization(Image img) {
+		int width = (int) img.getWidth();
+		int height = (int) img.getHeight();
+		Image copie = pixelwiseOp(img, PixelOp.GREY_SCALE);
+		PixelReader copieReader = copie.getPixelReader();
+		WritableImage res = new WritableImage(width, height);
+		PixelReader reader = img.getPixelReader();
+		PixelWriter writer = res.getPixelWriter();
+		
+		double max=0, min=1;
+		for (int x=0; x<width; x++)
+			for (int y=0; y<height; y++) {
+				double pixelVal = copieReader.getColor(x, y).getBlue();
+				if(pixelVal > max) max = pixelVal;
+				if(pixelVal < min) min = pixelVal;
+			}
+		
+		for (int x=0; x<width; x++)
+			for (int y=0; y<height; y++) {				
+				double red = reader.getColor(x, y).getRed();
+				double green = reader.getColor(x, y).getGreen();
+				double blue = reader.getColor(x, y).getBlue();
+				
+				int nRed = (int) (((red-min)*255/(max-min)));
+				int nGreen = (int) (((green-min)*255/(max-min)));
+				int nBlue = (int) (((blue-min)*255/(max-min)));
+							
+				writer.setColor(x, y, Color.rgb(BaseKit.bound(0, nRed, 255), BaseKit.bound(0, nGreen, 255), BaseKit.bound(0, nBlue, 255)));
+			}
 		
 		return res;
 	}
@@ -143,8 +190,61 @@ public class ImageManipulator {
 				
 		return res;
 	}
+	
+	public Image floodFill(Image img, int x, int y, Color fillColor, double toleranz, boolean square) {
+		IntPoint imgSize = new IntPoint((int) img.getWidth()-1, (int) img.getHeight()-1);
+		WritableImage res = new WritableImage(img.getPixelReader(), imgSize.x+1, imgSize.y+1);
+		PixelReader reader = res.getPixelReader();
+		PixelWriter writer = res.getPixelWriter();		
+		Color sourceColor = reader.getColor(x, y);
+		
+		System.out.println("filling " + sourceColor + " from (" + x + ", " + y + ") with " + fillColor + " in " + (square?"square":"diamond") + "-mode");
+		
+		Stack<IntPoint> openList = new Stack<>();
+		openList.push(new IntPoint(x, y));
+		
+		int count = 0;
+		IntPoint pos;
+		while(!openList.isEmpty()) {
+			pos = openList.pop();
+			
+			if(BaseKit.inBounds(toleranz, 0., 1.) && toleranz > 0) {
+				if(!pos.inBounds(imgSize) || !BaseKit.isWithinToleranz(reader.getColor(pos.x, pos.y), sourceColor, toleranz) || reader.getColor(pos.x, pos.y).equals(fillColor))
+					continue;
+			} else {
+				if(!pos.inBounds(imgSize) || !reader.getColor(pos.x, pos.y).equals(sourceColor) || reader.getColor(pos.x, pos.y).equals(fillColor))
+					continue;
+			}
+			
+			openList.push(new IntPoint(pos.x -1, pos.y));
+			openList.push(new IntPoint(pos.x, pos.y -1));
+			openList.push(new IntPoint(pos.x +1, pos.y));
+			openList.push(new IntPoint(pos.x, pos.y +1));
+			
+			if(square) {
+				openList.push(new IntPoint(pos.x -1, pos.y -1));
+				openList.push(new IntPoint(pos.x -1, pos.y +1));
+				openList.push(new IntPoint(pos.x +1, pos.y -1));
+				openList.push(new IntPoint(pos.x +1, pos.y +1));
+			}
+			count++;
+			writer.setColor(pos.x, pos.y, fillColor);
+		}
+		
+		System.out.println("filled " + count + " pixels");
+		return res;
+	}
+	
 }
 
 enum ScalingType {
-		NEAREST_NEIGHBOR, BILINEAR;
+	NEAREST_NEIGHBOR, BILINEAR;
+}
+
+enum PixelOp {
+	GREY_SCALE, INVERT, COLOR_NORMALISATION_GS;
+}
+
+enum ToolCode {
+	FLOOD_FILL;
 }
